@@ -1,10 +1,14 @@
-const express = require('express')
+const express = require('express');
+const { db_con } = require('../sumakina/config.db');
+const User = require('../models/users')
+const bcry =require('bcryptjs')
 //const cors = require('cors')
 
 class Server {
     constructor(){
-        this.app = express();
+        this.app = express()
         this.port = process.env.PORT
+        this.conDB()
         this.middle()
         this.routes()
     }
@@ -18,11 +22,21 @@ class Server {
             })
           })
 
-        this.app.post('/api', (req, res) => {
-            const body=req.body
+        this.app.post('/api', async(req, res) => {
+            const {nombre,correo,contraseña,rol}=req.body
+            const user=new User({nombre,correo,contraseña,rol})
+            const existecorreo= await User.findOne({correo})
+            if (existecorreo) {
+                return res.status(400).json({
+                    "msj": "El delito de suplantacion de identidad es una pena grave"
+                })
+            }
+            const salt=bcry.genSaltSync()
+            user.contraseña=bcry.hashSync(contraseña,salt)
+            await user.save()
             res.json({
                 msj: "Hello post",
-                body
+                user
             })
           })
 
@@ -42,10 +56,13 @@ class Server {
 
     listen(){
         this.app.listen(this.port, () => {
-            console.log('Hello word')
+            console.log('sus chinanigunz seran aportados atraves del puertito: ', this.port)
         })
     }
 
+    async conDB(){
+        await db_con()
+    }
 }
 
 module.exports = Server;
