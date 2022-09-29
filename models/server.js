@@ -1,7 +1,8 @@
 const express = require('express');
 const { db_con } = require('../sumakina/config.db');
 const User = require('../models/users')
-const bcry =require('bcryptjs')
+const bcry =require('bcryptjs');
+const { check, validationResult } = require('express-validator');
 //const cors = require('cors')
 
 class Server {
@@ -22,7 +23,16 @@ class Server {
             })
           })
 
-        this.app.post('/api', async(req, res) => {
+        this.app.post('/api', [
+            check('correo', 'correo no valido').isEmail(),
+            check('contraseña', 'la contraseña debe se mas elavorada, ponle alma hombre!').isLength({min:6}),
+            check('nombre','pero dime tu nombre we, no sea timido').not().isEmpty(),
+            check('rol', 'chinga no sabia que ese rol existia, anda y pon algo que no salga de tu imaginacion nmms >:/').isIn(['ADMIN','USER'])
+        ], async(req, res) => {
+            const errors=validationResult(req)
+            if (!errors.isEmpty()) {
+                return res.status(400).json(errors)
+            }
             const {nombre,correo,contraseña,rol}=req.body
             const user=new User({nombre,correo,contraseña,rol})
             const existecorreo= await User.findOne({correo})
