@@ -3,6 +3,7 @@ const { db_con } = require('../sumakina/config.db');
 const User = require('../models/users')
 const bcry =require('bcryptjs');
 const { check, validationResult } = require('express-validator');
+const { esRolValido, CorreoExiste, IDexist } = require('../helpers/db-validator');
 //const cors = require('cors')
 
 class Server {
@@ -15,19 +16,26 @@ class Server {
     }
 
     routes(){
-        this.app.get('/api', (req, res) => {
-            const qry=req.query
+        this.app.get('/api', async (req, res) => {
+            //localhost:8081/api/limite=2
+            const {limite=2,range}=req.query
+            const resp= await Promise.all([
+                User.find({estado:true}).limit(Number(limite)).skip(Number(range)),
+                User.countDocuments({estado:true})
+            ])
+            //const usersget= await User.find({estado:true}).limit(Number(limite)).skip(Number(range))
+            //const total =await User.countDocuments({estado:true})
             res.json({
                 msj: "Hello get",
-                qry
+                resp
             })
           })
 
         this.app.post('/api', [
-            check('correo', 'correo no valido').isEmail(),
+            check('correo', 'sumakina correo no valido').custom(CorreoExiste),
             check('contraseña', 'la contraseña debe se mas elavorada, ponle alma hombre!').isLength({min:6}),
             check('nombre','pero dime tu nombre we, no sea timido').not().isEmpty(),
-            check('rol', 'chinga no sabia que ese rol existia, anda y pon algo que no salga de tu imaginacion nmms >:/').isIn(['ADMIN','USER'])
+            check('rol').custom(esRolValido)
         ], async(req, res) => {
             const errors=validationResult(req)
             if (!errors.isEmpty()) {
@@ -50,11 +58,32 @@ class Server {
             })
           })
 
-          this.app.put('/api/:id', (req, res) => {
+          this.app.put('/api/:id',[
+            check('id').custom(IDexist)
+          ], async (req, res) => {
+            const errors=validationResult(req)
+            if (!errors.isEmpty()) {
+                return res.status(400).json(errors)
+            }
             const id=req.params
+            const {contraseña, google, correo, ...resto}=req.body
+            if (contraseña) {
+                const salt=bcry.genSaltSync()
+                resto.contraseña=bcry.hashSync(contraseña,salt)
+            }
+
+            const us=await User.findOneAndUpdate(id,resto,{new:true})
             res.json({
                 msj: "Hello put",
-                id
+                id,
+                us
+            })
+        })
+
+        this.app.delete('/api',async (req, res) => {
+            const userdel=await User.findByIdAndDelete()
+            res.json({
+                msj: "Hello delete"
             })
         })
     }

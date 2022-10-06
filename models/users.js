@@ -22,7 +22,7 @@ const usuarioQuemas = Schema({
     rol:{
         type: String,
         required:[true,"y que haces o que?"],
-        enum:['ADMIN','USER']
+        enum:['ADMIN','USER','VENTAS']
     },
     google:{
         type: Boolean,
